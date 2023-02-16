@@ -1,0 +1,56 @@
+- hosts: all
+  become: true
+  tasks:
+    - name: Creating config folder
+      ansible.builtin.file:
+        path: /opt/homeassistant/
+        state: directory
+        mode: 0755
+    - name: Create Home Assistant Container
+      community.docker.docker_container:
+        name: homeassistant
+        image: ghcr.io/home-assistant/home-assistant:stable
+        volumes:
+          - /opt/homeassistant/:/config
+          - /etc/localtime:/etc/localtime:ro
+        restart_policy: unless-stopped
+        network_mode: host
+    - name: Configure firewall
+      block:
+        - name: Allow sonos
+          ufw:
+            rule: allow
+            port: 1400
+            proto: tcp
+        - name: Allow Homekit UDP
+          ufw:
+            rule: allow
+            port: 5353
+            proto: udp
+        - name: Allow Homekit TCP
+          ufw:
+            rule: allow
+            port: 21063
+            proto: tcp
+        - name: Allow Homekit TCP Aida
+          ufw:
+            rule: allow
+            port: 21064
+            proto: tcp
+    - name: Creating Apach2 Virtual host
+      ansible.builtin.template:
+        src: ../templates/ha-apache-conf.j2
+        dest: /etc/apache2/sites-available/ha.conf
+        mode: 0644
+      vars: 
+        sub_domain: ha
+        web_server_port: 8123
+    - name: Enable Virtual Host conf
+      ansible.builtin.command: "/usr/sbin/a2ensite ha.conf"
+      notify: reload Apache 
+
+  handlers:
+    - name: reload Apache
+      ansible.builtin.service:
+        name: apache2
+        state: reloaded

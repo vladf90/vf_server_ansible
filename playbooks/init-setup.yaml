@@ -1,0 +1,49 @@
+- hosts: all
+  become: 'yes'
+  vars:
+    packages:
+      - vim
+      - wget
+      - curl
+      - htop
+      - git
+      - ufw
+      - apache2
+  tasks:
+    - name: Ensure a list of packages installed
+      apt:
+        name: "{{ packages }}"
+        state: present
+    - name: Enabling apache2 modules
+      ansible.builtin.apache2_module:
+        name: "{{ item }}"
+      loop:
+        - proxy
+        - proxy_http
+        - rewrite
+        - ssl
+        - proxy_wstunnel
+    - name: Setting up Firewall
+      block:
+        - name: Deny all
+          ufw: 
+            direction: incoming
+            policy: deny
+            proto: any
+            state: enabled
+        - name: Allow SSH
+          ufw:
+            rule: allow
+            name: OpenSSH
+        - name: Allow HTTP
+          ufw:
+            rule: allow
+            port: 80
+        - name: Allow HTTPS
+          ufw:
+            rule: allow
+            port: 443
+        - name: Enable ufw
+          ufw: 
+            state: enabled
+        

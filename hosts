@@ -1,0 +1,6 @@
+[homeserver]
+10.1.1.2
+
+[homeserver:vars]
+ansible_connection=ssh
+ansible_user=vlad

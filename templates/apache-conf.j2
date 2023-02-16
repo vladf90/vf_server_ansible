@@ -1,0 +1,32 @@
+<VirtualHost *:80>
+    ServerName {{ sub_domain }}.fbv.ro
+
+
+    <Proxy *>
+        Order deny,allow
+        Allow from all
+    </Proxy>
+
+RewriteEngine on
+RewriteCond %{SERVER_NAME} ={{ sub_domain }}.fbv.ro
+RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName {{ sub_domain }}.fbv.ro
+
+
+    <Proxy *>
+        Order deny,allow
+        Allow from all
+    </Proxy>
+
+    ProxyRequests Off
+    SSLProxyEngine On
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:{{ web_server_port }}/
+    ProxyPassReverse / http://127.0.0.1:{{ web_server_port }}/
+
+    SSLCertificateKeyFile /etc/ssl/ansible/*.fbv.ro.key
+    SSLCertificateFile /etc/ssl/ansible/*.fbv.ro.pem
+</VirtualHost>

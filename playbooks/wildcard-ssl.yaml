@@ -1,0 +1,17 @@
+- hosts: all
+  become: 'yes'
+  vars:
+    acme_sh_account_email: "vladfoamete@gmail.com"
+    acme_sh_default_dns_provider: "dns_cf"
+    acme_sh_default_dns_provider_api_keys:
+      "CF_Token": "VPLEaLI3S2-_ez9h7qtmfH-xWQeGptQru6fTFPdN"
+      "CF_Email": "vladfoamete@gmail.com"
+    acme_sh_default_install_cert_reloadcmd: "sudo systemctl reload apach2.service"
+    acme_sh_domains:
+      - domains: ["*.fbv.ro"]
+        # force_renew: True
+        # acme_sh_default_extra_flags_install_cert: "--cert-file {{ acme_sh_copy_certs_to_path }}/{{ item.domains | first }}.cert.pem"
+  roles:
+    - { role: "nickjj.acme_sh", tags: ["acme_sh"] }
+
+    

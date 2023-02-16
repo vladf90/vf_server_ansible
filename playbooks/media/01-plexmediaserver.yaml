@@ -1,0 +1,34 @@
+- hosts: all
+  become: 'yes'
+  tasks:
+    - name: Adding sign key
+      ansible.builtin.apt_key:
+        url: https://downloads.plex.tv/plex-keys/PlexSign.key
+    - name: Adding PlexMediaServer Official Repo
+      ansible.builtin.apt_repository:
+        repo: deb https://downloads.plex.tv/repo/deb public main
+        filename: plexmediaserver
+    - name: Install PlexMediaServer
+      ansible.builtin.apt:
+        name: plexmediaserver
+    - name: Opening firewall port
+      ufw:
+        rule: allow
+        port: 32400
+    - name: Creating Apache Virtual host
+      ansible.builtin.template:
+        src: ../../templates/apache-conf.j2
+        dest: /etc/apache2/sites-available/plex.conf
+        mode: 0644
+      vars: 
+        sub_domain: plex
+        web_server_port: 32400
+    - name: Enable Virtual Host conf
+      ansible.builtin.command: "/usr/sbin/a2ensite plex.conf"
+      notify: reload Apache 
+
+  handlers:
+    - name: reload Apache
+      ansible.builtin.service:
+        name: apache2
+        state: reloaded

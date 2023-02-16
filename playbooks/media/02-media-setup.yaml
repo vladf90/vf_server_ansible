@@ -1,0 +1,205 @@
+- hosts: all
+  become: 'yes'
+  tasks:
+    - name: Mount Media Drive
+      ansible.posix.mount:
+        path: /home/shared
+        src: /dev/sda1
+        state: mounted
+        fstype: ext4
+    - name: Create Media Group 
+      ansible.builtin.group:
+        name: media
+        gid: 1100
+    - name: Create Media User 
+      ansible.builtin.user:
+        name: media
+        uid: 1100
+        create_home: false
+        group: media
+    - name: Chown media folder
+      ansible.builtin.file:
+        path: /home/shared/
+        state: directory
+        mode: 0755
+        owner: media
+        group: media
+        recurse: true
+    - name: Install Sonarr
+      block:
+        - name: Setup Sonarr config folder
+          ansible.builtin.file:
+            path: /opt/sonarr/
+            state: directory
+            mode: 0744
+            owner: media
+            group: media
+        - name: Install Sonarr Docker Container
+          community.docker.docker_container:
+            name: sonarr
+            image: lscr.io/linuxserver/sonarr:latest
+            volumes:
+              - /opt/sonarr/:/config
+              - /home/shared/:/data/
+            restart_policy: unless-stopped
+            env:
+              PUID: "1100"
+              PGID: "1100"
+              UMASK: "002"
+              TZ: "Europe/Bucharest"
+            network_mode: host
+        - name: Creating Apache Virtual host
+          ansible.builtin.template:
+            src: ../../templates/apache-conf.j2
+            dest: /etc/apache2/sites-available/sonarr.conf
+            mode: 0644
+          vars: 
+            sub_domain: sonarr
+            web_server_port: 8989
+        - name: Enable Virtual Host conf
+          ansible.builtin.command: "/usr/sbin/a2ensite sonarr.conf"
+          notify: reload Apache 
+    - name: Install Deluge
+      block:
+        - name: Setup Deluge config folder
+          ansible.builtin.file:
+            path: /opt/deluge/
+            state: directory
+            mode: 0744
+            owner: media
+            group: media
+        - name: Install Deluge Docker Container
+          community.docker.docker_container:
+            name: deluge
+            image: lscr.io/linuxserver/deluge:latest
+            volumes:
+              - /opt/deluge/:/config
+              - /home/shared/torrents/:/data/torrents/
+            restart_policy: unless-stopped
+            env:
+              PUID: "1100"
+              PGID: "1100"
+              UMASK: "002"
+              TZ: "Europe/Bucharest"
+            network_mode: host
+        - name: Creating Apache Virtual host
+          ansible.builtin.template:
+            src: ../../templates/apache-conf.j2
+            dest: /etc/apache2/sites-available/deluge.conf
+            mode: 0644
+          vars: 
+            sub_domain: deluge
+            web_server_port: 8112
+        - name: Enable Virtual Host conf
+          ansible.builtin.command: "/usr/sbin/a2ensite deluge.conf"
+          notify: reload Apache 
+    - name: Install Radarr
+      block:
+        - name: Setup Radarr config folder
+          ansible.builtin.file:
+            path: /opt/radarr/
+            state: directory
+            mode: 0744
+            owner: media
+            group: media
+        - name: Install Radarr Docker Container
+          community.docker.docker_container:
+            name: radarr
+            image: lscr.io/linuxserver/radarr:latest
+            volumes:
+              - /opt/radarr/:/config
+              - /home/shared/:/data/
+            restart_policy: unless-stopped
+            env:
+              PUID: "1100"
+              PGID: "1100"
+              UMASK: "002"
+              TZ: "Europe/Bucharest"
+            network_mode: host
+        - name: Creating Apache Virtual host
+          ansible.builtin.template:
+            src: ../../templates/apache-conf.j2
+            dest: /etc/apache2/sites-available/radarr.conf
+            mode: 0644
+          vars: 
+            sub_domain: radarr
+            web_server_port: 7878
+        - name: Enable Virtual Host conf
+          ansible.builtin.command: "/usr/sbin/a2ensite radarr.conf"
+          notify: reload Apache 
+    - name: Install Bazarr
+      block:
+        - name: Setup Bazarr config folder
+          ansible.builtin.file:
+            path: /opt/bazarr/
+            state: directory
+            mode: 0744
+            owner: media
+            group: media
+        - name: Install Bazarr Docker Container
+          community.docker.docker_container:
+            name: bazarr
+            image: lscr.io/linuxserver/bazarr:development
+            volumes:
+              - /opt/bazarr/:/config
+              - /home/shared/:/data/
+            restart_policy: unless-stopped
+            env:
+              PUID: "1100"
+              PGID: "1100"
+              UMASK: "002"
+              TZ: "Europe/Bucharest"
+            network_mode: host
+        - name: Creating Apache Virtual host
+          ansible.builtin.template:
+            src: ../../templates/apache-conf.j2
+            dest: /etc/apache2/sites-available/bazarr.conf
+            mode: 0644
+          vars: 
+            sub_domain: bazarr
+            web_server_port: 6767
+        - name: Enable Virtual Host conf
+          ansible.builtin.command: "/usr/sbin/a2ensite bazarr.conf"
+          notify: reload Apache 
+    - name: Install Tautulli
+      block:
+        - name: Setup Tautulli config folder
+          ansible.builtin.file:
+            path: /opt/tautulli/
+            state: directory
+            mode: 0744
+            owner: media
+            group: media
+        - name: Install Tautulli Docker Container
+          community.docker.docker_container:
+            name: tautulli
+            image: lscr.io/linuxserver/tautulli:latest
+            volumes:
+              - /opt/tautulli/:/config
+            restart_policy: unless-stopped
+            env:
+              PUID: "1100"
+              PGID: "1100"
+              UMASK: "002"
+              TZ: "Europe/Bucharest"
+            network_mode: host
+        - name: Creating Apache Virtual host
+          ansible.builtin.template:
+            src: ../../templates/apache-conf.j2
+            dest: /etc/apache2/sites-available/tautulli.conf
+            mode: 0644
+          vars: 
+            sub_domain: tautulli
+            web_server_port: 8181
+        - name: Enable Virtual Host conf
+          ansible.builtin.command: "/usr/sbin/a2ensite tautulli.conf"
+          notify: reload Apache 
+  handlers:
+    - name: reload Apache
+      ansible.builtin.service:
+        name: apache2
+        state: reloaded
+
+
+          
+        

@@ -1,0 +1,14 @@
+- hosts: all
+  become: 'yes'
+  tasks:
+    - name: Setup static ip
+      nmcli:
+        conn_name: enp86s0
+        ifname: enp86s0
+        ip4: 10.1.1.2/24
+        gw4: 10.1.1.1
+        dns4:
+            - 10.1.1.1
+        state: present
+        autoconnect: yes
+        type: ethernet
