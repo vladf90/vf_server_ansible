@@ -1,0 +1,113 @@
+- hosts: all
+  become: 'yes'
+  tasks:
+    - name: Create Prometheus Group 
+      ansible.builtin.group:
+        name: prometheus
+        gid: 1200
+    - name: Create Prometheus User 
+      ansible.builtin.user:
+        name: prometheus
+        uid: 1200
+        create_home: false
+        group: prometheus
+    - name: Create prometheus config folder
+      ansible.builtin.file:
+        path: /etc/prometheus/
+        state: directory
+        mode: 0755
+        owner: prometheus
+        group: prometheus
+    - name: Create data folder
+      ansible.builtin.file:
+        path: /var/data/prometheus/
+        state: directory
+        mode: 0755
+        owner: prometheus
+        group: prometheus     
+    - name: Create prometheus data folder
+      ansible.builtin.file:
+        path: /var/data/
+        state: directory
+        mode: 0755
+    - name: Copy default config files
+      ansible.builtin.copy:
+        src: ./prometheus-config.yml
+        dest: /etc/prometheus/prometheus.yml
+        owner: prometheus
+        group:  prometheus
+        mode: '0755'
+      notify: restart prometheus
+    - name: Install Prometheus Docker Container
+      community.docker.docker_container:
+        name: prometheus
+        image: prom/prometheus:latest
+        volumes:
+          - /etc/prometheus/:/etc/prometheus/
+          - /var/data/prometheus/:/prometheus
+        restart_policy: unless-stopped
+        env:
+          PUID: "1200"
+          PGID: "1200"
+          UMASK: "002"
+          TZ: "Europe/Bucharest"
+        network_mode: host
+        command: >
+          --config.file=/etc/prometheus/prometheus.yml
+          --storage.tsdb.path=/prometheus
+          --web.console.libraries=/usr/share/prometheus/console_libraries
+          --web.console.templates=/usr/share/prometheus/consoles
+        user: 1200:1200
+    - name: Install Node Exporter Docker Container
+      community.docker.docker_container:
+        name: node_exporter
+        image: quay.io/prometheus/node-exporter:latest
+        volumes:
+          - /proc:/host/proc:ro
+          - /sys:/host/sys:ro
+          - /:/rootfs:ro
+          - /:/host:ro,rslave
+        restart_policy: unless-stopped
+        network_mode: host
+        command: >
+          --path.rootfs=/host
+        user: 1200:1200
+    - name: Create Grafana data folder
+      ansible.builtin.file:
+        path: /var/data/grafana
+        state: directory
+        mode: 0755
+    - name: Install Grafana Docker Container
+      community.docker.docker_container:
+        name: grafana
+        image: grafana/grafana-oss:latest
+        volumes:
+          - /var/data/grafana:/var/lib/grafana
+        restart_policy: unless-stopped
+        network_mode: host
+        env:
+          GF_INSTALL_PLUGINS: grafana-simple-json-datasource
+    - name: Creating Apache Virtual host
+      ansible.builtin.template:
+        src: ../../templates/apache-conf.j2
+        dest: /etc/apache2/sites-available/grafana.conf
+        mode: 0644
+      vars: 
+        sub_domain: monitor
+        web_server_port: 3000
+    - name: Enable Virtual Host conf
+      ansible.builtin.command: "/usr/sbin/a2ensite grafana.conf"
+      notify: reload Apache 
+  handlers:
+    - name: reload Apache
+      ansible.builtin.service:
+        name: apache2
+        state: reloaded
+    - name: restart prometheus
+      community.docker.docker_container:
+        name: prometheus
+        state: started
+        restart: yes
+
+          
+        
