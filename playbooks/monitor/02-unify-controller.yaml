@@ -1,0 +1,69 @@
+- hosts: all
+  become: 'yes'
+  tasks:
+    - name: Create Unify Group 
+      ansible.builtin.group:
+        name: unify
+        gid: 1300
+    - name: Create Unify User 
+      ansible.builtin.user:
+        name: unify
+        uid: 1300
+        create_home: false
+        group: unify
+    - name: Create Unify config folder
+      ansible.builtin.file:
+        path: /opt/unify/
+        state: directory
+        mode: 0755
+        owner: unify
+        group: unify
+    - name: Install Prometheus Docker Container
+      community.docker.docker_container:
+        name: unify-controller
+        image: lscr.io/linuxserver/unifi-controller:latest
+        volumes:
+          - /opt/unify/:/config
+        restart_policy: unless-stopped
+        env:
+          PUID: "1300"
+          PGID: "1300"
+          TZ: "Europe/Bucharest"
+        network_mode: host
+    - name: Setting up Firewall
+      block:
+        - name: Allow Unify Web
+          ufw:
+            rule: allow
+            port: 8443
+            proto: tcp
+        - name: Allow Unify STUN port
+          ufw:
+            rule: allow
+            port: 3478
+            proto: udp
+        - name: Allow Unify AP discovery
+          ufw:
+            rule: allow
+            port: 10001
+            proto: udp
+        - name: Allow Unify AP device communication
+          ufw:
+            rule: allow
+            port: 8080
+            proto: tcp         
+        - name: Allow Unify controller l2 network
+          ufw:
+            rule: allow
+            port: 1900
+            proto: udp           
+        - name: Allow Unify mobile throughput test
+          ufw:
+            rule: allow
+            port: 6789
+            proto: tcp
+        - name: Allow Unify 
+          ufw:
+            rule: allow
+            port: 6789
+            proto: tcp   

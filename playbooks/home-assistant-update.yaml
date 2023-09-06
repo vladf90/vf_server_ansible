@@ -1,0 +1,19 @@
+- hosts: all
+  become: true
+  tasks:
+    - name: Pulling image
+      community.docker.docker_image:
+        name: ghcr.io/home-assistant/home-assistant
+        tag: stable
+        source: pull
+        force_source: true
+    - name: Restarting Container
+      community.docker.docker_container:
+        name: homeassistant
+        image: ghcr.io/home-assistant/home-assistant:stable
+        volumes:
+          - /opt/homeassistant/:/config
+          - /etc/localtime:/etc/localtime:ro
+        restart_policy: unless-stopped
+        network_mode: host
+        recreate: true

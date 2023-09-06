@@ -3,8 +3,8 @@
   tasks:
     - name: Setup static ip
       nmcli:
-        conn_name: enp86s0
-        ifname: enp86s0
+        conn_name: home
+        ifname: enx7cc2c6355519
         ip4: 10.1.1.2/24
         gw4: 10.1.1.1
         dns4:
