@@ -1,0 +1,18 @@
+- hosts: all
+  become: true
+  tasks:
+    - name: Pulling image
+      community.docker.docker_image:
+        name: lscr.io/linuxserver/unifi-controller
+        tag: latest
+        source: pull
+        force_source: true
+    - name: Restarting Container
+      community.docker.docker_container:
+        name: unify-controller
+        image: lscr.io/linuxserver/unifi-controller:latest
+        volumes:
+          - /opt/unify/:/config
+        restart_policy: unless-stopped
+        network_mode: host
+        recreate: true

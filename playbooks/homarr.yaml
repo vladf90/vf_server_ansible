@@ -1,0 +1,68 @@
+- hosts: all
+  become: 'yes'
+  tasks:
+    - name: Create Homarr Group 
+      ansible.builtin.group:
+        name: homarr
+        gid: 1101
+    - name: Create Homarr User 
+      ansible.builtin.user:
+        name: homarr
+        uid: 1101
+        create_home: false
+        group: homarr
+    - name: Install Homarr
+      block:
+        - name: Setup Homarr config folder
+          ansible.builtin.file:
+            path: /opt/homarr/configs
+            state: directory
+            mode: 0744
+            owner: homarr
+            group: homarr
+        - name: Setup Homarr icons folder
+          ansible.builtin.file:
+            path: /opt/homarr/icons
+            state: directory
+            mode: 0744
+            owner: homarr
+            group: homarr
+        - name: Setup Homarr data folder
+          ansible.builtin.file:
+            path: /opt/homarr/data
+            state: directory
+            mode: 0744
+            owner: homarr
+            group: homarr                      
+        - name: Install Homarr Docker Container
+          community.docker.docker_container:
+            name: homarr
+            image: ghcr.io/ajnart/homarr:latest
+            volumes:
+              - /var/run/docker.sock:/var/run/docker.sock
+              - /opt/homarr/configs:/app/data/configs
+              - /opt/homarr/icons:/app/public/icons
+              - /opt/homarr/data:/data
+            restart_policy: unless-stopped
+            env:
+              PUID: "1101"
+              PGID: "1101"
+              UMASK: "002"
+              TZ: "Europe/Bucharest"
+            network_mode: host
+        - name: Creating Apache Virtual host
+          ansible.builtin.template:
+            src: ../templates/apache-conf.j2
+            dest: /etc/apache2/sites-available/homarr.conf
+            mode: 0644
+          vars: 
+            sub_domain: home
+            web_server_port: 7575
+        - name: Enable Virtual Host conf
+          ansible.builtin.command: "/usr/sbin/a2ensite homarr.conf"
+          notify: reload Apache
+  handlers:
+    - name: reload Apache
+      ansible.builtin.service:
+        name: apache2
+        state: reloaded
